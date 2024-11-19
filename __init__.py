@@ -1,3 +1,3 @@
-__all__ = ["particles", "vectors", "error", "useful_functions"]
-from .classes import particles, vectors, error
+__all__ = ["error", "particles", "vectors", "useful_functions"]
+from .classes import error, particles, vectors
 from .functions import useful_functions
