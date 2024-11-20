@@ -1,4 +1,4 @@
-from vectors import *
+from python_tools.classes.vectors import *
 import scipy.constants as const
 
 
