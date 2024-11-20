@@ -65,10 +65,10 @@ def find_peaks(data, depth: int = None, stds: float = 3.0):
             lr_std = stds*np.std(lr)
             lr_avg = np.average(lr)
             if data[i] >= np.max(left) and data[i] >= np.max(right) and data[i] >= lr_avg+lr_std:
-                if peaks[-1][1] != data[i]:
+                if (np.abs(peaks[-1][1] - data[i]) > 0.01*np.abs(data[i])) or np.abs(peaks[-1][0] - i) > depth:
                     peaks.append((i, data[i]))
             if data[i] <= np.min(left) and data[i] <= np.min(right) and data[i] <= lr_avg-lr_std:
-                if troughs[-1][1] != data[i]:
+                if (np.abs(troughs[-1][1] - data[i]) > 0.01*np.abs(data[i])) or (np.abs(troughs[-1][0] - i) > depth):
                     troughs.append((i, data[i]))
 
     # Remove the initial values

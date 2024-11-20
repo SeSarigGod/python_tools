@@ -357,11 +357,11 @@ class Error(object):
 
     def sig_figs(self, n: int):
         if isinstance(self.value, np.ndarray):
-            return Error(np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) for i in self.value]),
-                         np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) for i in self.error]))
+            return Error(np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in self.value]),
+                         np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in self.error]))
         else:
-            return Error(round(self.value, n - int(np.floor(np.log10(np.abs(self.value)))) - 1),
-                         round(self.error, n - int(np.floor(np.log10(np.abs(self.error)))) - 1))
+            return Error(round(self.value, n - int(np.floor(np.log10(np.abs(self.value)))) - 1) if self.value != 0 else self.value,
+                         round(self.error, n - int(np.floor(np.log10(np.abs(self.error)))) - 1) if self.error != 0 else self.error)
 
     def sign(self):
         if isinstance(self.value, np.ndarray):
@@ -414,7 +414,7 @@ def sig_figs(x, n: int):
     if isinstance(x, Error):
         return x.sig_figs(n)
     else:
-        return round(x, n - int(np.floor(np.log10(np.abs(x)))) - 1)
+        return round(x, n - int(np.floor(np.log10(np.abs(x)))) - 1) if x != 0 else x
 
 def sign(x):
     if isinstance(x, Error):
