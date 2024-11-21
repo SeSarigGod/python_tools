@@ -1,4 +1,5 @@
-import numpy as np
+from pulp import isiterable
+from python_tools.classes.error import *
 
 
 def clamp(value: int or float, min_val: int or float = 0, max_val: int or float = 0, restrict: bool = False) -> int or float:
@@ -19,8 +20,11 @@ def split_array(arr: np.ndarray[any], n: int) -> list[np.ndarray[any]]:
 def split_string(string: str, n: int) -> list[str]:
     return [string[i:i + n] for i in range(0, len(string), n)]
 
-def sign(number: any) -> int:
-    return (number > 0) - (number < 0)
+def sign(number: any) -> list[int] or int:
+    try:
+        return [(i > 0) - (i < 0) for i in number]
+    except TypeError("Input must be an iterable"):
+        return (number > 0) - (number < 0)
 
 def find_peaks(data, depth: int = None, stds: float = 3.0):
     # Initialize the peaks and troughs lists
@@ -76,3 +80,58 @@ def find_peaks(data, depth: int = None, stds: float = 3.0):
     troughs.pop(0)
 
     return peaks, troughs
+
+def percent_error(measured, actual):
+    return ((measured - actual) / actual) * 100
+
+def careful_average(x, y):
+    if isinstance(x, Error) and isinstance(y, Error):
+        try:
+            signs = [np.sign(i) for i in y.value]
+        except TypeError:
+            signs = np.sign(y.value)
+        return signs * (np.abs(x) + np.abs(y)) / 2
+    try:
+        signs = [np.sign(i) for i in y]
+    except TypeError:
+        signs = np.sign(y)
+    return signs * (np.abs(x) + np.abs(y)) / 2
+
+def sig_figs(x, n: int):
+    if isinstance(x, Error):
+        return x.sig_figs(n)
+    else:
+        return round(x, n - int(np.floor(np.log10(np.abs(x)))) - 1) if x != 0 else x
+
+def linear_fit(x, m, b):
+    return m * x + b
+
+def quadratic_fit(x, a, b, c):
+    return a * x ** 2 + b * x + c
+
+def cubic_fit(x, a, b, c, d):
+    return a * x ** 3 + b * x ** 2 + c * x + d
+
+def exponential_fit(x, a, b):
+    return a * np.exp(b * x)
+
+def power_fit(x, a, b):
+    return a * x ** b
+
+def logarithmic_fit(x, a, b):
+    return a * np.log(b * x)
+
+def inverse_fit(x, a, b):
+    return a / x + b
+
+def sigmoid_fit(x, a, b, c):
+    return a / (1 + np.exp(b * (x - c)))
+
+def gaussian_fit(x, a, b, c, d):
+    return a * np.exp(-((x - b) ** 2) / (2 * c ** 2)) + d
+
+def lorentzian_fit(x, a, b, c, d):
+    return a / ((x - b) ** 2 + c ** 2) + d
+
+def chi_squared(observed, expected):
+    return np.sum(((observed - expected) ** 2) / expected)
