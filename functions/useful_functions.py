@@ -1,7 +1,8 @@
-from classes.error import *
+from python_tools.classes.error import *
 
 
-def clamp(value: int or float, min_val: int or float = 0, max_val: int or float = 0, restrict: bool = False) -> int or float:
+def clamp(value: int or float, min_val: int or float = 0,
+          max_val: int or float = 0, restrict: bool = False) -> int or float:
     if restrict:
         return max(min_val, min(value, max_val))
     else:
