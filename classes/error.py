@@ -1,6 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import warnings
 from types import FunctionType
+from multipledispatch import dispatch
 
 warnings.filterwarnings('ignore', message='invalid value encountered in divide', category=RuntimeWarning)
 
@@ -19,7 +21,8 @@ class Error(object):
                 error = np.array(np.abs(error))
             case FunctionType():
                 error = error(np.abs(value))
-            case _ if isinstance(self.value, np.ndarray) and not isinstance(error, (np.ndarray, list, tuple, FunctionType)):
+            case _ if (isinstance(self.value, np.ndarray) and
+                       not isinstance(error, (np.ndarray, list, tuple, FunctionType))):
                 error = np.full(value.shape, np.abs(error))
             case _:
                 pass
@@ -83,7 +86,7 @@ class Error(object):
             return Error(output, output*np.sqrt(self.relative_error**2 + other.relative_error**2))
         elif isinstance(other, (list, tuple, np.ndarray)):
             try:
-                return Error([i * j for i, j in zip(self.value, other)], [i * j for i, j in zip(self.value, other)])
+                return Error([i * j for i, j in zip(self.value, other)], [i * j for i, j in zip(self.error, other)])
             except TypeError:
                 return Error([self.value * i for i in other], [self.error * i for i in other])
         else:
@@ -94,11 +97,11 @@ class Error(object):
 
     def __rmul__(self, other):
         if isinstance(other, Error):
-            output = self.value * other.value
-            return Error(output, output * np.sqrt(self.relative_error ** 2 + other.relative_error ** 2))
+            output = other.value * self.value
+            return Error(output, output * np.sqrt(other.relative_error ** 2 + self.relative_error ** 2))
         elif isinstance(other, (list, tuple, np.ndarray)):
             try:
-                return Error([i * j for i, j in zip(self.value, other)], [i * j for i, j in zip(self.value, other)])
+                return Error([i * j for i, j in zip(self.value, other)], [i * j for i, j in zip(other, self.error)])
             except TypeError:
                 return Error([self.value * i for i in other], [self.error * i for i in other])
         else:
@@ -143,10 +146,20 @@ class Error(object):
             except TypeError:
                 raise TypeError(f'Unsupported type for division: {type(other)}')
 
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            return next(self.value), next(self.error)
+        except StopIteration:
+            raise StopIteration
+
     def __pow__(self, other):
         if isinstance(other, Error):
             output = self.value ** other.value
-            return Error(output, output*np.sqrt((other.value * self.relative_error / self.value)**2 + (np.log(self.value) * other.error)**2))
+            return Error(output, output*np.sqrt((other.value * self.relative_error / self.value)**2
+                                                + (np.log(self.value) * other.error)**2))
         elif isinstance(other, (int, float)):
             return Error(self.value ** other, np.sqrt(other) * self.error)
         elif isinstance(other, (list, tuple, np.ndarray)):
@@ -160,7 +173,8 @@ class Error(object):
     def __rpow__(self, other):
         if isinstance(other, Error):
             output = other.value ** self.value
-            return Error(output, output*np.sqrt((self.value * other.relative_error / other.value)**2 + (np.log(other.value) * self.error)**2))
+            return Error(output, output*np.sqrt((self.value * other.relative_error / other.value)**2 +
+                                                (np.log(other.value) * self.error)**2))
         elif isinstance(other, (int, float)):
             return Error(other ** self.value, other ** self.value * np.log(other) * self.error)
         elif isinstance(other, (list, tuple, np.ndarray)):
@@ -259,16 +273,21 @@ class Error(object):
         return Error(self.value, self.error)
 
     def __format__(self, format_spec):
-        return Error(format(self.value, format_spec), format(self.error, format_spec))
+        match [i for i in format_spec]:
+            case '': return f'{self.value} ± {self.error}'
+            case ['.', *i, 's']:
+                return f'{self.sig_figs(self.value, int(''.join(i)))} ± {self.sig_figs(self.error, int(''.join(i)))}'
+            case _:
+                try:
+                    return f'{self.value:{format_spec}} ± {self.error:{format_spec}}'
+                except ValueError:
+                    raise ValueError(f'Invalid format specifier: {format_spec}')
 
     def __dir__(self):
         return dir(self)
 
-    def __sizeof__(self):
-        return self.value.__sizeof__()
-
     def __repr__(self):
-        return f'{self.value} ± {self.error}'
+        return f'{type(self).__name__}({self.value}, {self.error})'
 
     def __str__(self):
         return f'{self.value} ± {self.error}'
@@ -279,7 +298,7 @@ class Error(object):
         except IndexError:
             raise IndexError('Index out of range')
         except TypeError:
-            return self.value if index == 0 else self.error if index == 1 else TypeError('Unsupported type for indexing')
+            return self.value if index == 0 else self.error if index == 1 else IndexError('Index out of range')
 
     def __setitem__(self, index, value):
         if isinstance(value, Error):
@@ -346,7 +365,8 @@ class Error(object):
     def __ipow__(self, other):
         if isinstance(other, Error):
             self.value **= other.value
-            self.error = np.abs(self.value*np.sqrt((other.value * self.relative_error / self.value)**2 + (np.log(self.value) * other.error)**2))
+            self.error = np.abs(self.value*np.sqrt((other.value * self.relative_error / self.value)**2 +
+                                                   (np.log(self.value) * other.error)**2))
             self.relative_error = np.abs(self.error / self.value)
         elif isinstance(other, (int, float)):
             self.value **= other
@@ -355,13 +375,29 @@ class Error(object):
             raise TypeError(f'Unsupported type for exponentiation: {type(other)}')
         return self
 
-    def sig_figs(self, n: int):
-        if isinstance(self.value, np.ndarray):
-            return Error(np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in self.value]),
-                         np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in self.error]))
+    @dispatch((np.ndarray, list, tuple, float, int), int)
+    def sig_figs(self, data: np.ndarray | list | tuple | float | int, n: int) -> int or float or np.ndarray:
+        if isinstance(data, np.ndarray):
+            return np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data])
+        elif isinstance(data, list):
+            return [round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data]
+        elif isinstance(data, tuple):
+            return tuple([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data])
         else:
-            return Error(round(self.value, n - int(np.floor(np.log10(np.abs(self.value)))) - 1) if self.value != 0 else self.value,
-                         round(self.error, n - int(np.floor(np.log10(np.abs(self.error)))) - 1) if self.error != 0 else self.error)
+            return round(data, n - int(np.floor(np.log10(np.abs(data)))) - 1) if data != 0 else data
+
+    @dispatch(int)
+    def sig_figs(self, n: int) -> 'Error':
+        if isinstance(self.value, np.ndarray):
+            return Error(np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1)
+                                   if i != 0 else i for i in self.value]),
+                         np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1)
+                                   if i != 0 else i for i in self.error]))
+        else:
+            return Error(round(self.value, n - int(np.floor(np.log10(np.abs(self.value)))) - 1)
+                         if self.value != 0 else self.value,
+                         round(self.error, n - int(np.floor(np.log10(np.abs(self.error)))) - 1)
+                         if self.error != 0 else self.error)
 
     def sign(self):
         if isinstance(self.value, np.ndarray):
@@ -393,3 +429,26 @@ class Error(object):
         self.error = np.delete(self.error, index)
         self.relative_error = np.abs(self.error / self.value)
         return self
+
+    def plot(self, data, figure_index: int = 1, y_axis: bool = True, **kwargs) -> tuple[plt.Figure, plt.Axes]:
+        accepted_figure_args = ['figsize', 'dpi', 'facecolor', 'edgecolor', 'frameon']
+        figure_args = {i: kwargs.pop(i) for i in accepted_figure_args if i in kwargs}
+        fig = plt.figure(figure_index, **figure_args)
+        axes = fig.add_subplot(1, 1, 1)
+        if isinstance(data, Error):
+            if y_axis:
+                axes.errorbar(data.value, self.value, xerr=data.error, yerr=self.error, **kwargs)
+            else:
+                axes.errorbar(self.value, data.value, xerr=self.error, yerr=data.error, **kwargs)
+        else:
+            if y_axis:
+                axes.errorbar(data, self.value, yerr=self.error, **kwargs)
+            else:
+                axes.errorbar(self.value, data, xerr=self.error, **kwargs)
+        return fig, axes
+
+
+if __name__ == "__main__":
+    test_object = Error(5.692376237453, 0.1324235345)
+    print(f"{test_object:.3s}")
+    print(test_object.sig_figs(3))

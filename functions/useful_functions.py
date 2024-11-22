@@ -1,5 +1,4 @@
-from pulp import isiterable
-from python_tools.classes.error import *
+from classes.error import *
 
 
 def clamp(value: int or float, min_val: int or float = 0, max_val: int or float = 0, restrict: bool = False) -> int or float:
@@ -46,7 +45,7 @@ def find_peaks(data, depth: int = None, stds: float = 3.0):
 
         # Check if the index is the start or end and check data accordingly
         if i == 0 or i == length - 1:
-            checked_points: list = []
+            # checked_points: list = []
             if i == 0:
                 checked_points = data[1: min(length, 1 + depth)]
             elif i == length - 1:
@@ -63,8 +62,8 @@ def find_peaks(data, depth: int = None, stds: float = 3.0):
 
         # Check the rest of the indices
         else:
-            left = data[max(0, i - depth) : i]
-            right = data[i+1 : min(length, i + 1 + depth)]
+            left = data[max(0, i - depth): i]
+            right = data[i+1: min(length, i + 1 + depth)]
             lr = np.concatenate((left, right))
             lr_std = stds*np.std(lr)
             lr_avg = np.average(lr)
