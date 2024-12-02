@@ -65,7 +65,7 @@ class Error(object):
             return Error([self.value - i for i in other], self.error)
         else:
             try:
-                return Error(other - self.value, self.error)
+                return Error(self.value - other, self.error)
             except TypeError:
                 raise TypeError(f'Unsupported type for subtraction: {type(other)}')
 
@@ -184,6 +184,9 @@ class Error(object):
                 return Error(other ** self.value, other ** self.value * np.log(other) * self.error)
             except TypeError:
                 raise TypeError(f'Unsupported type for exponentiation: {type(other)}')
+
+    def sqrt(self):
+        return Error(np.sqrt(self.value), self.error / np.sqrt(2))
 
     def __neg__(self):
         return Error(-self.value, self.error)
