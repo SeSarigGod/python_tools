@@ -402,6 +402,12 @@ class Error(object):
                          round(self.error, n - int(np.floor(np.log10(np.abs(self.error)))) - 1)
                          if self.error != 0 else self.error)
 
+    def percent_error(self, actual, error: bool = False):
+        if error:
+            return ((self - actual) / actual) * 100
+        else:
+            return ((self.value - actual) / actual) * 100
+
     def sign(self):
         if isinstance(self.value, np.ndarray):
             return np.array([np.sign(i) for i in self.value])
