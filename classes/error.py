@@ -2,13 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 from types import FunctionType
-from multipledispatch import dispatch
+from functools import singledispatchmethod
 
 warnings.filterwarnings('ignore', message='invalid value encountered in divide', category=RuntimeWarning)
 
 
 class Error(object):
-    def __init__(self, value: int or float or np.ndarray, error: int or float or np.ndarray or FunctionType):
+    def __init__(self, value: int | float | np.ndarray, error: int | float | np.ndarray | FunctionType):
         match value:
             case list() | tuple():
                 value = np.array(value)
@@ -251,9 +251,6 @@ class Error(object):
     def __reversed__(self):
         return Error(reversed(self.value), reversed(self.error))
 
-    def __hash__(self):
-        return hash(self.value)
-
     def __bool__(self):
         return bool(self.value)
 
@@ -378,19 +375,37 @@ class Error(object):
             raise TypeError(f'Unsupported type for exponentiation: {type(other)}')
         return self
 
-    @dispatch((np.ndarray, list, tuple, float, int), int)
-    def sig_figs(self, data: np.ndarray | list | tuple | float | int, n: int) -> int or float or np.ndarray:
-        if isinstance(data, np.ndarray):
-            return np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data])
-        elif isinstance(data, list):
-            return [round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data]
-        elif isinstance(data, tuple):
-            return tuple([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data])
-        else:
-            return round(data, n - int(np.floor(np.log10(np.abs(data)))) - 1) if data != 0 else data
+    @singledispatchmethod
+    def sig_figs(self, arg, *args):
+        """Compute significant figures. Dispatcher based on first argument type."""
+        raise NotImplementedError(f"No implementation for type {type(arg)}")
 
-    @dispatch(int)
-    def sig_figs(self, n: int) -> 'Error':
+    @sig_figs.register(np.ndarray)
+    def _(self, data: np.ndarray, n: int) -> np.ndarray:
+        """Round a numpy array to n significant figures."""
+        return np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data])
+
+    @sig_figs.register(list)
+    def _(self, data: list, n: int) -> list:
+        """Round a list to n significant figures."""
+        return [round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data]
+
+    @sig_figs.register(tuple)
+    def _(self, data: tuple, n: int) -> tuple:
+        """Round a tuple to n significant figures."""
+        return tuple([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1) if i != 0 else i for i in data])
+
+    @sig_figs.register(float)
+    def _(self, data: float, n: int) -> float:
+        """Round a float to n significant figures."""
+        return round(data, n - int(np.floor(np.log10(np.abs(data)))) - 1) if data != 0 else data
+
+    @sig_figs.register(int)
+    def _(self, n: int) -> 'Error':
+        """Apply significant figures rounding to this Error's value and error.
+
+        When called with a single int, rounds both self.value and self.error to n significant figures.
+        """
         if isinstance(self.value, np.ndarray):
             return Error(np.array([round(i, n - int(np.floor(np.log10(np.abs(i)))) - 1)
                                    if i != 0 else i for i in self.value]),
