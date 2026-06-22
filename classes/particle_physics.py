@@ -23,7 +23,7 @@ def calculate_meson_mass(tspin, q1, q2):
     return mass
 
 
-def calculate_baryon_mass(total_spin, quark1, quark2, quark3, spin=(1, 1, 1)):
+def calculate_baryon_mass(tspin, q1, q2, q3, spin=(1, 1, 1)):
     """Calculate the mass of a baryon given its spin and the masses of its constituent quarks."""
     # Masses for quarks (in MeV/c^2)
     quark_masses = {
@@ -32,15 +32,15 @@ def calculate_baryon_mass(total_spin, quark1, quark2, quark3, spin=(1, 1, 1)):
         's': 538,  # Strange quark mass
     }
 
-    m1 = quark_masses[quark1]
-    m2 = quark_masses[quark2]
-    m3 = quark_masses[quark3]
+    m1 = quark_masses[q1]
+    m2 = quark_masses[q2]
+    m3 = quark_masses[q3]
 
     Aprime = np.power(2 * quark_masses['u'], 2) * 50  # A constant for spin-spin interaction
     m123 = m1 + m2 + m3
     mass = 0
 
-    if total_spin == 0.5:
+    if tspin == 0.5:
         totals = (1, 1, 0)
 
         s1dots2 = spin_dot_spin(totals[0], 0.5, 0.5)
@@ -62,7 +62,7 @@ def calculate_baryon_mass(total_spin, quark1, quark2, quark3, spin=(1, 1, 1)):
         mass3 = m123 + Aprime * ((s1dots2 / (m1 * m2)) + (s1dots3 / (m1 * m3)) + (s2dots3 / (m2 * m3)))
 
         mass = (1 / 3) * (mass1 + mass2 + mass3)
-    elif total_spin == 1.5:
+    elif tspin == 1.5:
         totals = (1, 1, 1)
 
         s1dots2 = spin_dot_spin(totals[0], 0.5, 0.5)
