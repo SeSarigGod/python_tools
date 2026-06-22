@@ -34,7 +34,7 @@ class Vector2(object):
     def __delete__(self, instance) -> None:
         del self
 
-    def __call__(self, _x: any, _y: any) -> None:
+    def __call__(self, _x, _y) -> None:
         self.x = _x
         self.y = _y
         self.update_subsets()
@@ -45,7 +45,7 @@ class Vector2(object):
     def __ne__(self, other: 'Vector2') -> bool:
         return self.x != other.x or self.y != other.y
 
-    def __setattr__(self, name: str, value: any) -> None:
+    def __setattr__(self, name: str, value) -> None:
         attrs = ['x', 'y', 'xy']
         try:
             if len(value) != len(name):
@@ -63,7 +63,7 @@ class Vector2(object):
                 raise AttributeError(f"Attribute {name} not found.")
             self.update_subsets()
 
-    def __getattr__(self, key: str) -> any:
+    def __getattr__(self, key: str):
         if key == 'x':
             return self.x
         elif key == 'y':
